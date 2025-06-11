@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanban Task Tracker</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom Styles -->
+    <style>
+    <link rel="manifest" href="manifest.json">
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden; /* Prevent horizontal scroll */
+        }
+        /* Custom scrollbar for task lists */
+        .tasks-list::-webkit-scrollbar {
+            width: 8px;
+        }
+        .tasks-list::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+        .tasks-list::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .tasks-list::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        /* Style for tasks being dragged */
+        .task.dragging {
+            opacity: 0.5;
+            transform: scale(1.05);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        /* Style for the drop zone */
+        .drop-zone-highlight {
+            background-color: rgba(165, 180, 252, 0.2);
+            border: 2px dashed #818cf8;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-900">Kanban Task Tracker</h1>
+            <p class="text-gray-600 mt-2">Organize your workflow, one task at a time.</p>
+            <div id="user-info" class="mt-4 text-sm text-gray-500">
+                <p>Loading user data...</p>
+            </div>
+        </header>
+
+        <!-- Kanban Board -->
+        <main class="grid grid-cols-1 md:grid-cols-3 gap-6" id="kanban-board">
+            <!-- To Do Column -->
+            <div class="bg-white rounded-xl shadow-md p-4 flex flex-col" data-status="todo">
+                <h2 class="text-xl font-semibold mb-4 flex items-center justify-between">
+                    <span><i class="fas fa-list-ul text-blue-500 mr-2"></i> To Do</span>
+                    <span id="todo-count" class="bg-blue-100 text-blue-800 text-sm font-semibold mr-2 px-2.5 py-0.5 rounded-full">0</span>
+                </h2>
+                <div class="tasks-list flex-grow min-h-[200px] p-2 bg-gray-50 rounded-lg overflow-y-auto" data-status="todo">
+                    <!-- Tasks for 'To Do' will be injected here -->
+                </div>
+            </div>
+
+            <!-- In Progress Column -->
+            <div class="bg-white rounded-xl shadow-md p-4 flex flex-col" data-status="inprogress">
+                <h2 class="text-xl font-semibold mb-4 flex items-center justify-between">
+                    <span><i class="fas fa-person-running text-yellow-500 mr-2"></i> In Progress</span>
+                    <span id="inprogress-count" class="bg-yellow-100 text-yellow-800 text-sm font-semibold mr-2 px-2.5 py-0.5 rounded-full">0</span>
+                </h2>
+                <div class="tasks-list flex-grow min-h-[200px] p-2 bg-gray-50 rounded-lg overflow-y-auto" data-status="inprogress">
+                    <!-- Tasks for 'In Progress' will be injected here -->
+                </div>
+            </div>
+
+            <!-- Done Column -->
+            <div class="bg-white rounded-xl shadow-md p-4 flex flex-col" data-status="done">
+                <h2 class="text-xl font-semibold mb-4 flex items-center justify-between">
+                    <span><i class="fas fa-check-circle text-green-500 mr-2"></i> Done</span>
+                    <span id="done-count" class="bg-green-100 text-green-800 text-sm font-semibold mr-2 px-2.5 py-0.5 rounded-full">0</span>
+                </h2>
+                <div class="tasks-list flex-grow min-h-[200px] p-2 bg-gray-50 rounded-lg overflow-y-auto" data-status="done">
+                    <!-- Tasks for 'Done' will be injected here -->
+                </div>
+            </div>
+        </main>
+
+        <!-- Add Task Form -->
+        <footer class="mt-8">
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-lg font-semibold mb-3">Add a New Task</h3>
+                <form id="add-task-form" class="flex flex-col sm:flex-row gap-4">
+                    <input type="text" id="new-task-input" placeholder="What needs to be done?" class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" required>
+                    <button type="submit" class="bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center">
+                        <i class="fas fa-plus mr-2"></i> Add Task
+                    </button>
+                </form>
+            </div>
+        </footer>
+
+        <!-- Confetti Canvas -->
+        <canvas id="confetti-canvas" class="fixed top-0 left-0 w-full h-full pointer-events-none z-50"></canvas>
+    </div>
+
+    <!-- Firebase and Confetti Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, addDoc, setDoc, deleteDoc, onSnapshot, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- GLOBAL VARIABLES & CONFIGURATION ---
+        // Get Firebase config from the global scope if available
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-kanban-app';
+
+        let app, db, auth, userId, tasksCollectionRef;
+        let isAuthReady = false;
+
+        // UI Element References
+        const addTaskForm = document.getElementById('add-task-form');
+        const newTaskInput = document.getElementById('new-task-input');
+        const kanbanBoard = document.getElementById('kanban-board');
+        const userInfoDiv = document.getElementById('user-info');
+
+        // Confetti instance
+        const confettiCanvas = document.getElementById('confetti-canvas');
+        const myConfetti = confetti.create(confettiCanvas, {
+            resize: true,
+            useWorker: true
+        });
+
+        // --- INITIALIZATION ---
+        async function initialize() {
+            try {
+                // Initialize Firebase
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                // Set up authentication listener
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        console.log("User is authenticated with UID:", userId);
+                        isAuthReady = true;
+                        userInfoDiv.innerHTML = `<p>Your User ID (share for collaboration): <span class="font-mono bg-gray-200 px-2 py-1 rounded">${userId}</span></p>`;
+                        // Setup Firestore references and listeners now that we have a user
+                        setupFirestoreListeners();
+                    } else {
+                        console.log("No user signed in.");
+                        isAuthReady = false;
+                        userId = null;
+                        userInfoDiv.innerHTML = `<p>User not authenticated. Tasks will not be saved.</p>`;
+                    }
+                });
+
+                // Sign in the user
+                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                    console.log("Signed in with custom token.");
+                } else {
+                    await signInAnonymously(auth);
+                    console.log("Signed in anonymously.");
+                }
+
+                // Setup initial UI event listeners
+                setupUIEventListeners();
+
+            } catch (error) {
+                console.error("Firebase Initialization Error:", error);
+                userInfoDiv.innerHTML = `<p class="text-red-500">Error connecting to the service. Please refresh.</p>`;
+            }
+        }
+
+        // --- FIRESTORE LOGIC ---
+        function setupFirestoreListeners() {
+            if (!isAuthReady) {
+                console.warn("Auth not ready, skipping Firestore listeners.");
+                return;
+            }
+            // Define the collection path for user-specific tasks
+            const collectionPath = `/artifacts/${appId}/users/${userId}/tasks`;
+            tasksCollectionRef = collection(db, collectionPath);
+            const q = query(tasksCollectionRef);
+
+            // Listen for real-time updates
+            onSnapshot(q, (snapshot) => {
+                console.log("Received snapshot from Firestore.");
+                // Clear all columns before re-rendering
+                document.querySelectorAll('.tasks-list').forEach(list => list.innerHTML = '');
+                
+                const taskCounts = { todo: 0, inprogress: 0, done: 0 };
+                
+                snapshot.docs.forEach(doc => {
+                    const task = { id: doc.id, ...doc.data() };
+                    renderTask(task);
+                    if(taskCounts.hasOwnProperty(task.status)){
+                        taskCounts[task.status]++;
+                    }
+                });
+                
+                updateTaskCounts(taskCounts);
+
+            }, (error) => {
+                console.error("Error listening to tasks:", error);
+            });
+        }
+        
+        async function addTaskToFirestore(text) {
+            if (!isAuthReady || !tasksCollectionRef) {
+                console.error("Cannot add task: User not authenticated or Firestore not ready.");
+                // Optionally show a user-facing error message
+                return;
+            }
+            try {
+                await addDoc(tasksCollectionRef, {
+                    text: text,
+                    status: 'todo', // New tasks always start in 'To Do'
+                    createdAt: serverTimestamp()
+                });
+                console.log("Task added to Firestore:", text);
+            } catch (error) {
+                console.error("Error adding task to Firestore:", error);
+            }
+        }
+
+        async function updateTaskStatusInFirestore(taskId, newStatus) {
+            if (!isAuthReady) return;
+            const taskDocRef = doc(db, `/artifacts/${appId}/users/${userId}/tasks`, taskId);
+            try {
+                await setDoc(taskDocRef, { status: newStatus }, { merge: true });
+                console.log(`Task ${taskId} status updated to ${newStatus}`);
+                // Trigger confetti if task is moved to 'Done'
+                if (newStatus === 'done') {
+                    triggerConfetti();
+                }
+            } catch (error) {
+                console.error("Error updating task status:", error);
+            }
+        }
+
+        async function deleteTaskFromFirestore(taskId) {
+            if (!isAuthReady) return;
+            const taskDocRef = doc(db, `/artifacts/${appId}/users/${userId}/tasks`, taskId);
+            try {
+                await deleteDoc(taskDocRef);
+                console.log(`Task ${taskId} deleted.`);
+            } catch (error) {
+                console.error("Error deleting task:", error);
+            }
+        }
+
+        // --- UI & DOM MANIPULATION ---
+        function renderTask(task) {
+            const list = document.querySelector(`.tasks-list[data-status="${task.status}"]`);
+            if (!list) return;
+
+            const taskElement = document.createElement('div');
+            taskElement.id = task.id;
+            taskElement.className = 'task bg-white p-3 rounded-lg shadow-sm mb-3 cursor-grab active:cursor-grabbing flex justify-between items-center';
+            taskElement.draggable = true;
+            
+            const taskText = document.createElement('p');
+            taskText.textContent = task.text;
+            taskText.className = 'text-gray-700 flex-grow';
+            
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'text-gray-400 hover:text-red-500 transition-colors ml-4 opacity-50 hover:opacity-100';
+            deleteButton.innerHTML = '<i class="fas fa-trash-alt"></i>';
+            deleteButton.onclick = (e) => {
+                e.stopPropagation(); // Prevent drag from starting
+                deleteTaskFromFirestore(task.id);
+            };
+
+            taskElement.appendChild(taskText);
+            taskElement.appendChild(deleteButton);
+            
+            addDragListenersToTask(taskElement);
+
+            list.appendChild(taskElement);
+        }
+
+        function updateTaskCounts(counts) {
+            document.getElementById('todo-count').textContent = counts.todo;
+            document.getElementById('inprogress-count').textContent = counts.inprogress;
+            document.getElementById('done-count').textContent = counts.done;
+        }
+
+        function setupUIEventListeners() {
+            // Form submission
+            addTaskForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const taskText = newTaskInput.value.trim();
+                if (taskText) {
+                    addTaskToFirestore(taskText);
+                    newTaskInput.value = '';
+                }
+            });
+
+            // Drag and drop for columns
+            const taskLists = document.querySelectorAll('.tasks-list');
+            taskLists.forEach(list => {
+                list.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    list.classList.add('drop-zone-highlight');
+                });
+                list.addEventListener('dragleave', (e) => {
+                    list.classList.remove('drop-zone-highlight');
+                });
+                list.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    list.classList.remove('drop-zone-highlight');
+                    const taskId = e.dataTransfer.getData('text/plain');
+                    const newStatus = list.dataset.status;
+                    updateTaskStatusInFirestore(taskId, newStatus);
+                });
+            });
+        }
+
+        function addDragListenersToTask(taskElement) {
+            taskElement.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', taskElement.id);
+                setTimeout(() => {
+                    taskElement.classList.add('dragging');
+                }, 0);
+            });
+
+            taskElement.addEventListener('dragend', () => {
+                taskElement.classList.remove('dragging');
+            });
+        }
+        
+        // --- EFFECTS ---
+        function triggerConfetti() {
+            const end = Date.now() + (2 * 1000);
+            const colors = ['#a78bfa', '#f472b6', '#4ade80', '#38bdf8'];
+
+            (function frame() {
+                myConfetti({
+                    particleCount: 4,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0 },
+                    colors: colors
+                });
+                myConfetti({
+                    particleCount: 4,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1 },
+                    colors: colors
+                });
+
+                if (Date.now() < end) {
+                    requestAnimationFrame(frame);
+                }
+            }());
+        }
+
+        // --- START THE APP ---
+        window.onload = initialize;
+
+    </script>
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => console.log('ServiceWorker registration successful with scope: ', registration.scope))
+                .catch(err => console.log('ServiceWorker registration failed: ', err));
+        });
+    }
+    </script>
+</body>
+</html>

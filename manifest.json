@@ -1,0 +1,21 @@
+{
+  "name": "Kanban Task Tracker",
+  "short_name": "Kanban",
+  "description": "A simple Kanban board to track your tasks.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f3f4f6",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "https://placehold.co/192x192/4f46e5/ffffff?text=K",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://placehold.co/512x512/4f46e5/ffffff?text=K",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}
